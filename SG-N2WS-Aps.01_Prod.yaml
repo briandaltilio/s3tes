@@ -1,0 +1,65 @@
+# See comments throughout on what should be modified when creating a new group and using this as a template.
+AWSTemplateFormatVersion: '2010-09-09'
+Description: This template the pots required for N2WS File and Folder LEvel Restores. (c) 2017 Public Service Enterprise Group Incorporated. All rights reserved.
+Parameters: 
+  ProdVpcStackName: # This will identify the Stack that created the production VPC which is needed for the VpcId
+    Type: String  
+    Default: vpc-production
+    Description: Name of the stack with the exported values for the production VPC
+  GroupName: 
+    Type: String
+    Default: SG-N2WS-Aps # This is the Security Group name
+Resources:
+  SGN2WSApsProd:  # This value should be changed to the Security Group name without the dashes or VPC
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: 
+        !Sub "${GroupName}_Prod"
+      GroupDescription: Ports required for N2WS to Restored Server Communication  # Update with relevant name
+      VpcId: 
+        Fn::ImportValue: !Sub "${ProdVpcStackName}-VpcId"
+      SecurityGroupEgress: # Update for Egress Rules.  Typically none are created as they will be covered by the Default SG that has been created
+        - IpProtocol: '-1'
+          CidrIp: 127.0.0.1/32
+          Description: Default rule
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 10.132.32.147/32
+          Description: N2WS Server SSH Access
+        - IpProtocol: tcp
+          FromPort: '443'
+          ToPort: '443'
+          CidrIp: 10.132.32.147/32
+          Description: N2WS Server HTTPS Access
+      Tags:
+        - Key: application
+          Value: N2WS # Update for Tag Description
+        - Key: Name
+          Value:
+            !Sub "${GroupName}_Prod"
+  InboundSelfReferenceRuleProd: # Add this block when a security group will reference itself
+    Type: AWS::EC2::SecurityGroupIngress
+    DependsOn: SGN2WSApsProd
+    Properties:
+      IpProtocol: '-1'
+      FromPort: '-1'
+      ToPort: '-1'
+      SourceSecurityGroupId: !Ref SGN2WSApsProd # Replace with Security group resource from above
+      GroupId: !Ref SGN2WSApsProd # Replace with Security group resource from above
+  InboundCrossReferenceRuleProd: # Add this block when a security group will reference itself
+    Type: AWS::EC2::SecurityGroupIngress
+    DependsOn: SGN2WSApsProd 
+    Properties:
+      IpProtocol: '-1'
+      FromPort: '-1'
+      ToPort: '-1'
+      SourceSecurityGroupId: !Ref SGN2WSApsProd # Replace with Security group resource from above
+      GroupId: !Ref SGN2WSApsProd # Replace with Security group resource from above
+Outputs:
+  SGN2WSApsProd: # Update accordingly for Resource Name
+    Description: Id of Security Group
+    Value: !Ref SGN2WSApsProd # Update accordingly for Resource Name
+    Export: 
+      Name: 
+        !Sub "${AWS::StackName}-${GroupName}-Prod-SecurityGroupId" # Update accordingly
